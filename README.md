@@ -3,7 +3,9 @@
 We provide both an js implementation and a web-based editor for creating smooth color gradients.
 The webapp allows for generating perceptually smooth, high-order color gradients using **Cubic Hermite Splines (Catmull-Rom)** in the **OKLCH** color space.
 
-View the interactive Editor [here](https://zral0kh.github.io/hermite-oklch-gpage/)
+[![Live Demo Preview](assets/preview.png)](https://zral0kh.github.io/hermite-oklch-gpage/)
+
+[**🚀 Open Live Editor**](https://zral0kh.github.io/hermite-oklch-gpage/)
 
 ## 1. The Problem with Standard Gradients
 
