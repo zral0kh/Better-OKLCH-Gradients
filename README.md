@@ -1,91 +1,83 @@
 # Better OKLCH Spline Gradient
 
-We provide both an js implementation and a web-based editor for creating smooth color gradients.
-The webapp allows for generating perceptually smooth, high-order color gradients using **Cubic Hermite Splines (Catmull-Rom)** in the **OKLCH** color space.
+This project provides a standalone JavaScript implementation and a web-based visualization tool for generating **perceptually smooth, high-order color gradients**.
+
+By utilizing **Cubic Hermite Splines (Catmull-Rom)** within the **OKLCH** color space, this approach mitigates common artifacts found in standard linear sRGB interpolation, such as Mach bands and desaturated intermediate colors.
 
 [![Live Demo Preview](assets/preview.png)](https://zral0kh.github.io/hermite-oklch-gpage/)
 
 [**🚀 Open Live Editor**](https://zral0kh.github.io/hermite-oklch-gpage/)
 
-## 1. The Problem with Standard Gradients
+---
 
-Most web gradients (CSS `linear-gradient`) rely on **Linear Interpolation (Lerp)** in the **sRGB** color space. While computationally cheap, this approach has three fundamental flaws:
+## 1. Limitations of Standard Linear Gradients
+
+Standard CSS gradients (`linear-gradient`) typically rely on **Linear Interpolation (Lerp)** within the **sRGB** color space. While computationally efficient, this method introduces three significant perceptual flaws:
 
 ### A. The "Gray Dead Zone"
-When interpolating between two complementary colors (e.g., Blue to Yellow), linear interpolation draws a straight line through the 3D color cube. This line often passes directly through the desaturated gray center of the color space.
-*   **Result:** Vibrant colors turn into "mud" in the middle of the transition.
+When interpolating between complementary colors (e.g., Blue to Yellow), a linear path through the RGB cube often intersects the achromatic (gray) axis.
+*   **Consequence:** Vibrant input colors result in a desaturated, "muddy" transition in the middle of the gradient.
 
-### B. Mach Bands (Visual Hard Edges)
-Standard multi-stop gradients are "Polylines." At every color stop, the rate of color change (velocity) changes instantly.
-*   **Math:** They have $C^0$ continuity (connected) but not $C^1$ continuity (smooth tangent).
-*   **Result:** The human eye is incredibly sensitive to changes in the rate of change (derivative). We perceive these sharp velocity changes as physical lines or bands, known as **Mach Bands**, even if the color values are technically continuous.
+### B. Mach Banding
+Standard multi-stop gradients function as polylines ($C^0$ continuity). At each color stop, the rate of change (velocity) of the color shifts instantaneously.
+*   **Consequence:** The human visual system is highly sensitive to discontinuities in the first derivative. These abrupt changes in slope are perceived as physical lines or bands, known as **Mach Bands**, even when the color values are continuous.
 
 ### C. Perceptual Non-Uniformity
-sRGB is not perceptually uniform. A mathematical change of `+10` in Green looks much more drastic to the human eye than `+10` in Blue.
-*   **Result:** Gradients appear to speed up and slow down unevenly, making the transition look unbalanced.
+The sRGB color space is not perceptually uniform. A Euclidean distance of $X$ in the Green channel represents a significantly different visual magnitude than the same distance in the Blue channel.
+*   **Consequence:** Gradients appear to accelerate and decelerate unevenly, creating an unbalanced visual rhythm.
 
 ---
 
-## 2. The Solution: Oklch + Splines
+## 2. Methodology
 
-This tool solves these problems by combining two advanced techniques:
+This tool addresses these limitations by combining a perceptually uniform color space with higher-order interpolation logic.
 
-### A. The Space: OKLCH
-We perform all calculations in **Oklch** (Oklab Cylindrical).
-*   **Perceptual Uniformity:** A distance of $X$ in Oklch space represents the same amount of visual change regardless of the color.
-*   **Hue Preservation:** By separating Chroma (Saturation) and Hue, we can interpolate rotationally.
-*   **Result:** Smooth, predictable transitions that match how the human eye perceives color.
+### The Space: OKLCH
+Calculations are performed in **Oklch** (Oklab Cylindrical). By separating Lightness and Chroma from Hue, we can interpolate rotationally. This preserves the perceived intensity and saturation of the colors throughout the transition.
 
-This is how many people choose the gradients currently, but this still suffers from the issues of linear interpolation mentioned above.
+### The Path: Cubic Hermite Splines
+Instead of connecting stops with straight lines, we fit a **Catmull-Rom Spline** through the control points.
 
+1.  **$C^1$ Continuity:** The spline ensures that the incoming velocity vector at a stop matches the outgoing velocity vector.
+    *   *Result:* Smooth tangents eliminate sharp derivative changes, preventing Mach banding artifacts.
+2.  **Curvature:** The spline path naturally curves around the achromatic center rather than cutting through it.
+    *   *Result:* Saturation is preserved. For example, a Blue-to-Yellow gradient follows an arc through valid chromatic space, producing a vibrant intermediate tone rather than gray.
 
-### B. The Path: Cubic Hermite Splines
-Instead of drawing straight lines between stops, we fit a **Catmull-Rom Spline** through the points in 3D space.
-
-1.  **$C^1$ Continuity:** The spline ensures that the incoming velocity at a stop perfectly matches the outgoing velocity. There are no sharp corners.
-    *   *Benefit:* **Mach Bands are eliminated.** The gradient flows like a liquid rather than a series of hard turns.
-2.  **Curved Paths:** A spline can curve *around* the gray center of the color space rather than cutting through it.
-    *   *Benefit:* **Preserved Saturation.** A gradient from Blue to Yellow can curve slightly outward to maintain vibrancy, resulting in a rich intermediate green or white/pink (depending on the path) instead of gray mud.
-
-In general this is not globally optimal for larger than 4-stop gradients, because it does not minimize total curvature, only locally.
-Nontheless, because humans are more sensitive to local changes, this still produces a visually superior result in practice.
+> **Note on Optimization:** While this approach is not a global energy minimization curve (Euler-Bernoulli elastica), the Cubic Hermite Spline is a standard local approximation in computer graphics. Since visual smoothness is primarily determined by local continuity between neighbors, this method yields visually superior results without the computational overhead of solving complex differential equations.
 
 ---
 
-## 3. Key Features & Math
+## 3. The Visual Editor
 
-### 3D Tangent Control
-In this tool, a color stop is not just a point; it is a point with a **velocity vector (tangent)**.
-*   **Direction:** Controls where the gradient goes next (e.g., "head towards Cyan before turning to Blue").
-*   **Magnitude (Tension):** Controls how "aggressively" the color moves. A long tangent makes the color "linger" longer before accelerating to the next stop.
+Editing 3D coordinates on a 2D screen is inherently difficult. The web-based editor solves this via **Smart Projection**.
 
-### Smart Projection (Osculating Plane)
-Editing 3D coordinates on a 2D screen is notoriously difficult.
-*   **The Solution:** When you select a stop, the editor projects the view onto the **local curvature plane** (defined by the active stop and its neighbors).
-*   **Why it matters:** This allows you to edit the curve naturally without accidental distortions. The $L_2$ norm scaling ensures the zoom level remains stable regardless of the camera's rotation.
+*   **Osculating Plane Projection:** When a stop is selected, the viewport automatically aligns to the local curvature plane defined by the active point and its neighbors. This ensures edits are made in the most relevant geometric context.
+*   **Adaptive Scaling:** The editor uses an $L_2$ norm scaling factor to ensure the visualization remains stable and usable regardless of the curve's rotation in 3D space.
 
-### Editor Modes
-*   **Free Mode:** Allows changing both the direction and the magnitude of the color velocity.
-*   **Strength (Locked) Mode:** Constrains changes to the magnitude only. This effectively acts as a **Tension** control, allowing you to tighten or loosen the curve without altering the hue path.
+### Tangent Control Modes
+*   **Free Mode:** Allows manipulation of both the direction and magnitude (tension) of the tangent vector.
+*   **Strength Mode:** Constrains manipulation to the magnitude only. This allows for adjusting the "tension" of the curve—tightening or loosening the transition—without altering the hue trajectory.
 
 ---
 
-## 5. Usage in Production
+## 4. Usage in Production
 
-Browsers do not yet support `spline-gradient()` natively. To use these gradients on the web, we sample the polynomial curve at discrete intervals (e.g., 40 steps) and output a standard linear-gradient string.
+Native browser support for spline-based interpolation is currently unavailable. To utilize these gradients in production, the curve is sampled at discrete intervals (e.g., 40 steps) to generate a standard CSS `linear-gradient` string.
+
+Because OKLCH interpolation in CSS is linear between stops, utilizing a sufficient number of steps renders the linear segments visually indistinguishable from the ideal mathematical curve.
 
 ```css
-/* Resulting CSS approximates the curve using many linear stops */
+/* Output is a high-resolution linear approximation */
 background: linear-gradient(to right, 
   oklch(0.6 0.15 240) 0%, 
   oklch(0.62 0.16 235) 2.5%,
-  /* ... intermediate steps ... */
+  /* ... intermediate samples ... */
   oklch(0.8 0.1 100) 100%
 );
 ```
 
-Because Oklch interpolation in CSS is linear between stops, using enough steps makes the linear segments indistinguishable from the true curve to the human eye.
+## 5. Standalone Library
 
-## Try it Out
-You may either use the [online editor here](https://zral0kh.github.io/hermite-oklch-gpage/) or download the js file and use it in your own projects!
-The js file currently only allows setting strengths and not directions of the tangents. You can just use different color points instead to achieve the same result in theory, may need some tweaking. In most cases it should not be necessary to change tangent directions anyway.
+The repository includes a standalone JavaScript module (`spline.js`) for programmatic generation.
+
+**Note:** The standalone library supports configuring tangent **strengths** (tension) but abstracts away arbitrary 3D direction vectors. In practice, desired path alterations are best achieved by inserting intermediate color stops rather than manually manipulating 3D tangent vectors.
