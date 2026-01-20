@@ -3,6 +3,8 @@
 We provide both an js implementation and a web-based editor for creating smooth color gradients.
 The webapp allows for generating perceptually smooth, high-order color gradients using **Cubic Hermite Splines (Catmull-Rom)** in the **OKLCH** color space.
 
+View the interactive Editor [here](https://zral0kh.github.io/hermite-oklch-gpage/)
+
 ## 1. The Problem with Standard Gradients
 
 Most web gradients (CSS `linear-gradient`) rely on **Linear Interpolation (Lerp)** in the **sRGB** color space. While computationally cheap, this approach has three fundamental flaws:
@@ -83,5 +85,5 @@ background: linear-gradient(to right,
 Because Oklch interpolation in CSS is linear between stops, using enough steps makes the linear segments indistinguishable from the true curve to the human eye.
 
 ## Try it Out
-You may either use the [online editor here](https://playcode.io/react-playground--019bdb2a-47cc-7658-b0b8-879311f56147) or download the js file and use it in your own projects!
+You may either use the [online editor here](https://zral0kh.github.io/hermite-oklch-gpage/) or download the js file and use it in your own projects!
 The js file currently only allows setting strengths and not directions of the tangents. You can just use different color points instead to achieve the same result in theory, may need some tweaking. In most cases it should not be necessary to change tangent directions anyway.
