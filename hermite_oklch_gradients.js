@@ -271,9 +271,14 @@ export function prepareWeights(weights, n, loop) {
 
 /**
  * Generate interpolated colors.
- * @param {string[]} fixpoints - Array of CSS colors.
- * @param {number[]} weights - Array of numbers 0..1.
- * @param {Object} [options] - format, space, loop, strengths.
+ * @param {string[]} fixpoints - Array of CSS colors used as control points.
+ * @param {number[]} weights - Array of weights to sample the resulting gradient at.
+ * @param {Object} [options] - format, space, loop, strengths. \n
+ * format: 'hex' | 'rgb' | 'oklab' | 'oklch' \n
+ * space: 'oklab' | 'oklch' \n
+ * loop: boolean \n
+ * strengths: number | number[]
+ * @returns {Array} - Array of colors in specified format.
  */
 export function splineColors(fixpoints, weights, { format = 'oklab', space = 'oklab', loop = false, strengths = 1 } = {}) {
   const spline = fitSpline(fixpoints, { space, loop, strengths })
