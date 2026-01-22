@@ -2,7 +2,7 @@
 
 This project provides a standalone JavaScript implementation and a web-based visualization tool for generating **perceptually smooth, high-order color gradients**.
 
-By utilizing **Cubic Hermite Splines (Catmull-Rom)** within the **OKLCH** color space, this approach mitigates common artifacts found in standard linear sRGB interpolation, such as Mach bands and desaturated intermediate colors.
+By utilizing **Cubic Hermite Splines (Catmull-Rom)** and **Natural Cubic Splines** within the **OKLAB/OKLCH** color space, this approach mitigates common artifacts found in standard linear sRGB interpolation, such as Mach bands and desaturated intermediate colors.
 
 [![Live Demo Preview](assets/preview.png)](https://zral0kh.github.io/hermite-oklch-gpage/)
 
@@ -30,54 +30,61 @@ The sRGB color space is not perceptually uniform. A Euclidean distance of $X$ in
 
 ## 2. Methodology
 
-This tool addresses these limitations by combining a perceptually uniform color space with higher-order interpolation logic.
+This tool addresses these limitations by combining a perceptually uniform color space (OkLab / OKLCH) with higher-order interpolation logic.
 
-### The Space: OKLCH
-Calculations are performed in **Oklch** (Oklab Cylindrical). By separating Lightness and Chroma from Hue, we can interpolate rotationally. This preserves the perceived intensity and saturation of the colors throughout the transition.
 
-### The Path: Cubic Hermite Splines
-Instead of connecting stops with straight lines, we fit a **Catmull-Rom Spline** through the control points.
+### The Path: Cubic Splines
+Instead of connecting stops with straight lines, we fit either a  **Catmull-Rom Spline** ( Centripetal or Chordal) or a **Natural Cubic Spline** through the control points.
 
 1.  **$C^1$ Continuity:** The spline ensures that the incoming velocity vector at a stop matches the outgoing velocity vector.
     *   *Result:* Smooth tangents eliminate sharp derivative changes, preventing Mach banding artifacts.
-2.  **Curvature:** The spline path naturally curves around the achromatic center rather than cutting through it.
-    *   *Result:* Saturation is preserved. For example, a Blue-to-Yellow gradient follows an arc through valid chromatic space, producing a vibrant intermediate tone rather than gray.
+2. **Curve Parametrization:** We allow both uniform and chordal parametrization of the spline. Chordal basically means we auto adjust the location of the control points slightly to better reflect the distances in color space.
 
-> **Note on Optimization:** While this approach is not a global energy minimization curve (Euler-Bernoulli elastica), the Cubic Hermite Spline is a standard local approximation in computer graphics. Since visual smoothness is primarily determined by local continuity between neighbors, this method yields visually superior results without the computational overhead of solving complex differential equations.
+> **Note on Optimization:** While the Cubic Hermite Spline is not a global energy minimization curve (Euler-Bernoulli elastica), it is still quite effective at producing visuall smooth transitions with minimal computational overhead. If you need true optimization you can opt for the Natural Cubic Spline instead.
+### The additional Space: OKLCH
+Calculations can be performed in **Oklch** (Oklab Cylindrical). By separating Lightness and Chroma from Hue, we can interpolate rotationally.
+
+This means the spline path naturally curves around the achromatic center rather than cutting through it.
+    *   *Result:* Saturation is preserved. For example, a Blue-to-Yellow gradient follows an arc through valid chromatic space, producing a vibrant intermediate tone rather than gray.
 
 ---
 
 ## 3. The Visual Editor
 
-Editing 3D coordinates on a 2D screen is inherently difficult. The web-based editor solves this via **Smart Projection**.
+The idea is that the user can manipulate the spline curve by changing strength, and orientation of the tangents at each stop. (In practice you only need strength as a change in orientation is equal to a different set of fixpoints.)
+While Colors with alpha Values are supported, the editor only supports 3D coordinates and we externalize the editing of alpha values to a simple 2D curve.
 
-*   **Osculating Plane Projection:** When a stop is selected, the viewport automatically aligns to the local curvature plane defined by the active point and its neighbors. This ensures edits are made in the most relevant geometric context.
+Editing 3D coordinates on a 2D screen is difficult, so we don't do that. We instead utilize specific projection planes and interaction modes to make the process intuitive. 
+
+*   **Neighbor Plane Projection:** When a stop is selected, the viewport automatically aligns to the local curvature plane defined by the active point and its neighbors. This ensures edits are made in the most relevant geometric context. Note that this is not the Frenet-Frame because it is unstable for curves with points of zero curvature. In practice that should not be a problem for your edits. It is however close to it.
+*   **Orthogonal Plane Projection:** In rotation mode, the tangent vector is manipulated within the plane orthogonal to its current direction, allowing intuitive rotational adjustments.
+  
 *   **Adaptive Scaling:** The editor uses an $L_2$ norm scaling factor to ensure the visualization remains stable and usable regardless of the curve's rotation in 3D space.
 
 ### Tangent Control Modes
-*   **Free Mode:** Allows manipulation of both the direction and magnitude (tension) of the tangent vector.
-*   **Strength Mode:** Constrains manipulation to the magnitude only. This allows for adjusting the "tension" of the curve—tightening or loosening the transition—without altering the hue trajectory.
+*  **Strength Mode:** Constrains manipulation to the magnitude only. This allows for adjusting the "tension" of the curve—tightening or loosening the transition—without altering the hue trajectory.
+*  **Free Mode:** Allows manipulation of the tangent vector freely in the projected plane, enabling custom directional adjustments to the curve's path.
+*  **Rotation Mode:**  Dragging the vector in this mode, initially a point, rotates it around the half ball of tangent length in the original tangent direction.
+
 
 ---
 
 ## 4. Usage in Production
 
-Native browser support for spline-based interpolation is currently unavailable. To utilize these gradients in production, the curve is sampled at discrete intervals (e.g., 40 steps) to generate a standard CSS `linear-gradient` string.
-
-Because OKLCH interpolation in CSS is linear between stops, utilizing a sufficient number of steps renders the linear segments visually indistinguishable from the ideal mathematical curve.
+Native browser support for spline-based interpolation is currently unavailable. To utilize these gradients in production, the curve is sampled at discrete intervals (e.g., 20 steps) to generate a standard CSS `linear-gradient` string.
 
 ```css
 /* Output is a high-resolution linear approximation */
 background: linear-gradient(to right, 
-  oklch(0.6 0.15 240) 0%, 
-  oklch(0.62 0.16 235) 2.5%,
+  oklch(0.6 0.15 240 / 100) 0%, 
+  oklch(0.62 0.16 235 / 98) 2.5%,
   /* ... intermediate samples ... */
-  oklch(0.8 0.1 100) 100%
+  oklch(0.8 0.1 100 / 54) 100%
 );
 ```
 
 ## 5. Standalone Library
 
-The repository includes a standalone JavaScript module (`spline.js`) for programmatic generation.
+The repository includes a standalone JavaScript module (`hermite_oklch_gradients.js`) for programmatic generation.
 
-**Note:** The standalone library supports configuring tangent **strengths** (tension) but abstracts away arbitrary 3D direction vectors. In practice, desired path alterations are best achieved by inserting intermediate color stops rather than manually manipulating 3D tangent vectors.
+**Note:** The standalone library supports configuring tangent **strengths** (lengths in the visual editor) (==tension) but abstracts away arbitrary 3D direction vectors. In practice, desired path alterations are best achieved by inserting intermediate color stops or changing existing ones rather than manually manipulating 3D tangent vectors. Reverse engineering those from the manipulated vectors is hard so we don't do that.
