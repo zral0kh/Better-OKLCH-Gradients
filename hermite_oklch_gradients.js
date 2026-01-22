@@ -395,7 +395,7 @@ export function formatColor(vec, format = 'oklab', inputSpace = 'oklab') {
 export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic', param = 'uniform', loop = false, strengths = 1 } = {}) {
   if (!['oklab', 'oklch'].includes(space)) throw new Error('space must be "oklab" or "oklch"')
   if (!['natural-cubic', 'centripetal-CR', 'chordal-CR'].includes(method)) throw new Error('invalid method')
-  if (!['uniform', 'chordal', 'centripetal'].includes(param)) throw new Error('invalid param option')
+  if (!['uniform', 'geometric'].includes(param)) throw new Error('param must be "uniform" or "geometric"')
 
   const P = fixpoints.map((c) => parseColor(c, space))
   const n = P.length
@@ -403,46 +403,46 @@ export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic'
 
   const segments = loop ? n : n - 1
 
-  // Geometric chords (spatial distance only, excluding alpha)
-  const geomChords = []
-  for (let i = 0; i < segments; i++) {
-    const a = P[i]
-    const b = P[(i + 1) % n]
-    const d = getDelta(b, a, space)
-    let dist = vDist3(d)
-    if (dist < 1e-6) dist = 1e-6
-    geomChords.push(dist)
-  }
-
-  // Parameter chords: determine how 0..1 maps to fixpoints
-  let paramChords = []
+  // Build chords based on param option
+  let chords = []
+  
   if (param === 'uniform') {
-    for (let i = 0; i < segments; i++) paramChords.push(1)
-  } else if (param === 'chordal') {
-    paramChords = geomChords.slice()
-  } else { // centripetal
-    paramChords = geomChords.map(d => Math.sqrt(d))
+    // Uniform spacing: all segments equal
+    for (let i = 0; i < segments; i++) chords.push(1)
+  } else {
+    // Geometric spacing: based on spatial distance
+    for (let i = 0; i < segments; i++) {
+      const a = P[i]
+      const b = P[(i + 1) % n]
+      const d = getDelta(b, a, space)
+      let dist = vDist3(d)
+      if (dist < 1e-6) dist = 1e-6
+      
+      // Apply method-specific scaling
+      if (method === 'centripetal-CR') {
+        chords.push(Math.sqrt(dist))
+      } else if (method === 'chordal-CR') {
+        chords.push(dist)
+      } else {
+        // natural-cubic uses geometric distance as-is
+        chords.push(dist)
+      }
+    }
   }
 
-  // CR chords: for tangent computation (geometric^power)
-  const p = method === 'centripetal-CR' ? 0.5 : 1.0
-  const crChords = geomChords.map(d => Math.pow(d, p))
-
-  // Compute tangents
+  // Compute tangents using the chosen chords
   let M
   if (method === 'natural-cubic') {
-    // Returns derivatives D_i per unit paramChord
-    M = fitNaturalCubic(P, paramChords, loop, space)
+    M = fitNaturalCubic(P, chords, loop, space)
   } else {
-    // Returns tangents in cr-chord units
-    M = fitCatmullRom(P, crChords, loop, space)
+    M = fitCatmullRom(P, chords, loop, space)
   }
 
   // Apply strength scaling
   const getS = (i) => (Array.isArray(strengths) ? (strengths[i] ?? 1) : strengths)
   M = M.map((tan, i) => vScale(tan, getS(i)))
 
-  // Build Hermite segments (each parameterized over t ∈ [0,1])
+  // Build Hermite segments
   const segs = []
   for (let i = 0; i < segments; i++) {
     const p0 = P[i]
@@ -450,18 +450,14 @@ export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic'
     let m0 = M[i]
     let m1 = M[(i + 1) % n]
 
-    // Convert tangents to Hermite form for this segment
+    // Convert tangents to Hermite form
     if (method === 'natural-cubic') {
-      // Natural cubic returns derivatives; convert to Hermite tangents
-      const h = paramChords[i]
+      // Natural cubic returns derivatives; scale by chord length
+      const h = chords[i]
       m0 = vScale(m0, h)
       m1 = vScale(m1, h)
-    } else {
-      // CR tangents are in cr-units; convert to param-units for this segment
-      const safe = (x) => (Math.abs(x) < 1e-12 ? 1e-12 : x)
-      m0 = vScale(m0, paramChords[i] / safe(crChords[i]))
-      m1 = vScale(m1, paramChords[i] / safe(crChords[(i + 1) % segments]))
     }
+    // CR tangents are already in the correct units (no rescaling needed)
 
     const dims = Math.max(p0.length, p1.length)
     const a = [], b = [], c = [], d = []
@@ -476,7 +472,7 @@ export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic'
       targetP1[2] = (p0[2] || 0) + dh
     }
 
-    // Build Hermite polynomial: P(t) = a + bt + ct² + dt³
+    // Build Hermite polynomial
     for (let k = 0; k < dims; k++) {
       const p0k = p0[k] !== undefined ? p0[k] : 0
       const p1k = targetP1[k] !== undefined ? targetP1[k] : 0
@@ -494,7 +490,7 @@ export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic'
 
   // Build cumulative parameter array
   const u = [0]
-  for (let i = 0; i < segments; i++) u.push(u[i] + paramChords[i])
+  for (let i = 0; i < segments; i++) u.push(u[i] + chords[i])
 
   return { segs, u, totalLen: u[u.length - 1], n, loop, space, method, param }
 }
@@ -507,7 +503,7 @@ export function fitSpline(fixpoints, { space = 'oklab', method = 'natural-cubic'
  * @param {string} options.format - Output format: 'oklab'|'oklch'|'rgb'|'hex'
  * @param {string} options.space - Computation space: 'oklab'|'oklch'
  * @param {string} options.method - Spline method: 'natural-cubic'|'centripetal-CR'|'chordal-CR'
- * @param {string} options.param - Parameterization: 'uniform'|'chordal'|'centripetal'
+ * @param {string} options.param - Parameterization: 'uniform'|'geometric'
  * @param {boolean} options.loop - Close the spline
  * @param {number|number[]} options.strengths - Tangent strength multipliers
  */

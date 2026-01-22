@@ -38,7 +38,7 @@ Instead of connecting stops with straight lines, we fit either a  **Catmull-Rom 
 
 1.  **$C^1$ Continuity:** The spline ensures that the incoming velocity vector at a stop matches the outgoing velocity vector.
     *   *Result:* Smooth tangents eliminate sharp derivative changes, preventing Mach banding artifacts.
-2. **Curve Parametrization:** We allow both uniform and chordal parametrization of the spline. Chordal basically means we auto adjust the location of the control points slightly to better reflect the distances in color space.
+2. **Curve Parametrization:** We support both uniform and geometric chords (segments) for the spline. Normally one expects the given control points to be seperated in the gradient by equal amount. This is what uniform does. Geometric basically means we auto adjust the location of the control points to reflect the distances in color space with respect to the . For Natural Cubic Splines this has not effect.
 
 > **Note on Optimization:** While the Cubic Hermite Spline is not a global energy minimization curve (Euler-Bernoulli elastica), it is still quite effective at producing visuall smooth transitions with minimal computational overhead. If you need true optimization you can opt for the Natural Cubic Spline instead.
 ### The additional Space: OKLCH
@@ -87,4 +87,6 @@ background: linear-gradient(to right,
 
 The repository includes a standalone JavaScript module (`hermite_oklch_gradients.js`) for programmatic generation.
 
-**Note:** The standalone library supports configuring tangent **strengths** (lengths in the visual editor) (==tension) but abstracts away arbitrary 3D direction vectors. In practice, desired path alterations are best achieved by inserting intermediate color stops or changing existing ones rather than manually manipulating 3D tangent vectors. Reverse engineering those from the manipulated vectors is hard so we don't do that.
+**Note:** The standalone library supports configuring tangent **strengths** (lengths in the visual editor) (==tension) but does not allow for arbitrary 4D direction vectors. In practice, desired path alterations are best achieved by inserting intermediate color stops or changing existing ones rather than manually manipulating 4D tangent vectors. 
+    Reverse engineering those from the manipulated vectors is hard so we don't do that.
+    If you really need that you need to finetune with the visual editor anyways, so you can use its output.
