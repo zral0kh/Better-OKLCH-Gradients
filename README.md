@@ -1,4 +1,4 @@
-# Better OKLCH Spline Gradient
+# Better OKLCH/OKLAB Spline Gradients
 
 This project provides a standalone JavaScript implementation and a web-based visualization tool for generating **perceptually smooth, high-order color gradients**.
 
