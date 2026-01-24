@@ -54,7 +54,7 @@ This means the spline path naturally curves around the achromatic center rather 
 The idea is that the user can manipulate the spline curve by changing strength, and orientation of the tangents at each stop. (In practice you only need strength as a change in orientation is equal to a different set of fixpoints.)
 While Colors with alpha Values are supported, the editor only supports 3D coordinates and we externalize the editing of alpha values to a simple 2D curve.
 
-Editing 3D coordinates on a 2D screen is difficult, so we don't do that. We instead utilize specific projection planes and interaction modes to make the process intuitive. 
+Editing 3D coordinates on a 2D screen is difficult, so we don't do that. We instead utilize specific projection planes and interaction modes to make the process intuitive. The most simple interaction: inversion is provided by an extra button.
 
 *   **Neighbor Plane Projection:** When a stop is selected, the viewport automatically aligns to the local curvature plane defined by the active point and its neighbors. This ensures edits are made in the most relevant geometric context. Note that this is not the Frenet-Frame because it is unstable for curves with points of zero curvature. In practice that should not be a problem for your edits. It is however close to it.
 *   **Orthogonal Plane Projection:** In rotation mode, the tangent vector is manipulated within the plane orthogonal to its current direction, allowing intuitive rotational adjustments.
