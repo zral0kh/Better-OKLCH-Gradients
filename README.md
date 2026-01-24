@@ -64,7 +64,7 @@ Editing 3D coordinates on a 2D screen is difficult, so we don't do that. We inst
 ### Tangent Control Modes
 *  **Strength Mode:** Constrains manipulation to the magnitude only. This allows for adjusting the "tension" of the curve—tightening or loosening the transition—without altering the hue trajectory.
 *  **Free Mode:** Allows manipulation of the tangent vector freely in the projected plane, enabling custom directional adjustments to the curve's path.
-*  **Rotation Mode:**  Dragging the vector in this mode, initially a point, rotates it around the half ball of tangent length in the original tangent direction.
+*  **Rotation Mode:**  Dragging the vector in this mode, initially points in the camera direction, rotates it around the half ball of tangent length facing the camera.
 
 
 ---
